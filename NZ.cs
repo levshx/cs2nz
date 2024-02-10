@@ -1,6 +1,8 @@
 using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Admin;
+using CounterStrikeSharp.API.Modules.Utils;
 
 namespace NZ;
 
@@ -11,6 +13,8 @@ public class NZ : BasePlugin
 
     private UsersSettings?[] _users = new UsersSettings?[65];
     private Config _config;
+
+    private string _prefix = $"[{ChatColors.Green}NZ{ChatColors.Default}] ";
 
     private bool _nzRound;
     private bool _isVoteSuccessful;
@@ -31,59 +35,65 @@ public class NZ : BasePlugin
 
             _users[slot + 1] = null;
         }));
-        AddCommand("css_nz", "", ((player, info) =>
-        {
-            if (player == null) return;
-            if (_isVoteSuccessful)
-            {
-                if (_nzRound)
-                {
-                    Server.PrintToChatAll("The NoZoom battle is already happening!");
-                    return;
-                }
 
-                if (_countRound >= _config.NzRounds && !_nzRound)
-                {
-                    Server.PrintToChatAll($"You will be able to vote for NoZoom battle after {(_config.NzCooldownRounds + _config.NzRounds)-_countRound} rounds!");
-                    return;
-                }
-                Server.PrintToChatAll("Enough votes have already been collected!");
-            }
-            if (_users[player.EntityIndex!.Value.Value]!.IsVoted)
-            {
-                Server.PrintToChatAll("You have already voted for NoZoom battle!");
-                return;
-            }
+		AddCommand("css_nz", "", callback_command);
+		AddCommand("css_ns", "", callback_command);
 
-            _users[player.EntityIndex!.Value.Value]!.IsVoted = true;
-            var successfulVoteCount = Utilities.GetPlayers().Count * _config.NzNeed;
-            if ((int)successfulVoteCount == 0) successfulVoteCount = 1.0f;
-            _countVote++;
-            Server.PrintToChatAll($"{player.PlayerName} проголосовал за NoZoom раунд {_countVote}/{(int)successfulVoteCount}");
-            if (_countVote == (int)successfulVoteCount)
-            {
-                _isVoteSuccessful = true;
-                Server.PrintToChatAll("NoZoom будет в следующий раунд!");
-            }
-        }));
+		void callback_command(CCSPlayerController? player, CounterStrikeSharp.API.Modules.Commands.CommandInfo info)
+		{
+			if (player == null) return;
+			if (_isVoteSuccessful)
+			{
+				if (_nzRound)
+				{
+					Server.PrintToChatAll($"{_prefix}{ChatColors.Green}NoZoom раунд начался!");
+					return;
+				}
 
-        RegisterEventHandler<EventRoundStart>(((@event, info) =>
-        {
+				if (_countRound >= _config.NzRounds && !_nzRound)
+				{
+					Server.PrintToChatAll($"{_prefix}Вы сможете проголосовать за {ChatColors.Green}NoZoom{ChatColors.Default} через {(_config.NzCooldownRounds + _config.NzRounds) - _countRound} раундов!");
+					return;
+				}
+				Server.PrintToChatAll($"{_prefix}Уже собрано достаточно голосов!");
+			}
+			if (_users[player.Index]!.IsVoted)
+			{
+				Server.PrintToChatAll($"{_prefix}Вы уже проголосовали за {ChatColors.Green}NoZoom{ChatColors.Default}!");
+				return;
+			}
+
+			_users[player.Index]!.IsVoted = true;
+			var successfulVoteCount = Utilities.GetPlayers().Count * _config.NzNeed;
+			if ((int)successfulVoteCount == 0) successfulVoteCount = 1.0f;
+			_countVote++;
+			Server.PrintToChatAll($"{_prefix}{player.PlayerName} проголосовал за {ChatColors.Green}NoZoom{ChatColors.Default} раунд {_countVote}/{(int)successfulVoteCount}");
+			if (_countVote == (int)successfulVoteCount)
+			{
+				_isVoteSuccessful = true;
+				Server.PrintToChatAll($"{_prefix}Через раунд, {_config.NzRounds} раунд(а), будут {ChatColors.Green}NoZoom{ChatColors.Default}!");
+			}
+		}
+
+		RegisterEventHandler<EventRoundStart>(((@event, info) =>
+        {            
             if (_nzRound)
             {
-                Server.PrintToChatAll("The sights are off this round!");
+                Server.PrintToChatAll($"{_prefix}{ChatColors.Green}NoZoom раунд начался!") ;                
                 if(_config.DisableDeagle)
                 {
                     foreach (var player in Utilities.GetPlayers())
-                    {
-                        foreach (var weapon in player.PlayerPawn.Value.WeaponServices!.MyWeapons)
+                    {                   
+						foreach (var weapon in player.PlayerPawn.Value.WeaponServices!.MyWeapons)
                         {
-                            if (weapon.Value.DesignerName != "weapon_deagle") continue;
-
+                            if (weapon.Value.DesignerName != "weapon_deagle") continue;                
+                         
                             weapon.Value.Remove();
-                            break;
-                        }
-                    }
+							player.PlayerPawn.Value.WeaponServices!.ActiveWeapon.Value.Remove(); // Fix2
+							player.GiveNamedItem("weapon_awp"); //FIX
+							break;
+                        }  
+					}
                 }
             }
 
@@ -104,9 +114,9 @@ public class NZ : BasePlugin
                     _isVoteSuccessful = false;
                     foreach (var player in Utilities.GetPlayers())
                     {
-                        _users[player.EntityIndex!.Value.Value]!.IsVoted = false;
+                        _users[player.Index]!.IsVoted = false;
                     }
-                    Server.PrintToChatAll("The NoZoom battle is over!");
+                    Server.PrintToChatAll($"{_prefix}{ChatColors.Green}NoZoom раунд был окончен!");
                 }
                 return HookResult.Continue;
             }
@@ -131,7 +141,8 @@ public class NZ : BasePlugin
             if (!_nzRound) return HookResult.Continue;
             var player = @event.Userid;
             var currentWeapon = player.PlayerPawn.Value.WeaponServices!.ActiveWeapon.Value.DesignerName;
-            player.PlayerPawn.Value.WeaponServices!.ActiveWeapon.Value.Remove();
+			Console.WriteLine($"[NoZoom] currentWeapon {currentWeapon}");
+			player.PlayerPawn.Value.WeaponServices!.ActiveWeapon.Value.Remove();
             player.GiveNamedItem(currentWeapon);
             return HookResult.Continue;
         }));
@@ -162,7 +173,7 @@ public class NZ : BasePlugin
             JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
 
         Console.ForegroundColor = ConsoleColor.DarkGreen;
-        Console.WriteLine("[NoZoom] The configuration was successfully saved to a file: " + configPath);
+        Console.WriteLine("[NoZoom] КОНФИГУРАЦИЯ ОТСУТСТВОВАЛА И БЫЛА СОЗДАНА: " + configPath);
         Console.ResetColor();
 
         return config;
