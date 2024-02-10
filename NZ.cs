@@ -59,11 +59,11 @@ public class NZ : BasePlugin
             var successfulVoteCount = Utilities.GetPlayers().Count * _config.NzNeed;
             if ((int)successfulVoteCount == 0) successfulVoteCount = 1.0f;
             _countVote++;
-            Server.PrintToChatAll($"{player.PlayerName} voted for NoZoom battle {_countVote}/{(int)successfulVoteCount}");
+            Server.PrintToChatAll($"{player.PlayerName} проголосовал за NoZoom раунд {_countVote}/{(int)successfulVoteCount}");
             if (_countVote == (int)successfulVoteCount)
             {
                 _isVoteSuccessful = true;
-                Server.PrintToChatAll("NoZoom будет на следующий раунд!");
+                Server.PrintToChatAll("NoZoom будет в следующий раунд!");
             }
         }));
 
